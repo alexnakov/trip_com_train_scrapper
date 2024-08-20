@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from firebase_admin import credentials, firestore
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -7,8 +8,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
-from firebase_admin import credentials
-from firebase_admin import firestore
 import time
 import firebase_admin
 import asyncio
@@ -141,6 +140,70 @@ def scroll_to_next_btn(action_chains):
     action_chains.move_to_element(last_time_element).scroll_by_amount(0, 200).perform()
     take_screenshot()
 
+def clear_collection(collection_name):
+    collection_ref = db.collection(collection_name)
+    batch_size = 500
+    docs = collection_ref.limit(batch_size).stream()
+
+    deleted = 0
+    while True:
+        for doc in docs:
+            doc.reference.delete()
+            deleted += 1
+            print(f'Deleted document: {doc.id}')
+
+        if deleted < batch_size:
+            break
+        docs = collection_ref.limit(batch_size).stream()
+
+def upload_to_fb_collection():        
+    now = datetime.now()
+
+    dates = []
+    times = []
+    prices = []
+
+    # Putting the data into lists to be POSTED
+    with open('real-data.txt','r') as file:
+        hour1 = 0
+        for line in file:
+            line1 = line.strip()
+
+            hour2 = int(line1[:2])
+
+            if hour2 < hour1:
+                now += timedelta(days=1)
+
+            times.append(line1[:5])
+            prices.append(line1[-5:])
+            dates.append(now.strftime(r'%d/%m/%Y'))
+
+            hour1 = hour2
+
+    # connect to cloud db
+    cred = credentials.Certificate(r"firebase_key.json")
+    firebase_admin.initialize_app(cred)
+
+    db = firestore.client()
+
+    # clearing old data
+    clear_collection('dates_times_n_prices')
+
+    batch = db.batch()
+
+    # jsonifying and uploading new data
+    for i in range(len(dates)):
+        data_to_upload = {
+            'date': dates[i],
+            'time0': times[i],
+            'price': prices[i]
+        }
+
+        doc_ref = db.collection('dates_times_n_prices').document()
+        batch.set(doc_ref, data_to_upload)
+
+    batch.commit()
+
 if __name__ == '__main__':
     try:
         data_length = 0
@@ -154,7 +217,7 @@ if __name__ == '__main__':
 
         start = time.time()
 
-        while data_length < 3000:
+        while data_length < 50:
             times = get_times()
             prices = get_prices()
 
@@ -170,6 +233,8 @@ if __name__ == '__main__':
             time.sleep(0.3)
             data_length = count_lines_in_txt_file()
             print(data_length)
+        else:
+
 
         print('-'*30)
         print(time.time() - start, 'secs')
