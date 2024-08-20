@@ -15,9 +15,14 @@ import json
 import os
 import traceback
 
+# database set up
+cred = credentials.Certificate(r"firebase_key.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
+
+# query string with time and train stations set up
 now = datetime.now()
 selected_date = now.replace(hour=22, minute=0, second=0, microsecond=0) + timedelta(days=1)
-
 date_str = selected_date.strftime(f'%Y-%m-%d')
 trip_com_q_string = f'https://uk.trip.com/trains/list?departurecitycode=GB2278&arrivalcitycode=GB1594&departurecity=Sheffield&arrivalcity=London%20(Any)&departdate={date_str}&departhouript=22&departminuteipt=00&scheduleType=single&hidadultnum=1&hidchildnum=0&railcards=%7B%22YNG%22%3A1%7D&isregularlink=1&biztype=UK&locale=en-GB&curr=GBP'
 
@@ -33,11 +38,25 @@ def find_elements(selector, query):
     return "Could not find element you were looking for"
            
 def decline_cookies():
-    try:
-        decline_btn = find_elements(By.CLASS_NAME, 'cookie-banner-btn-more')[0]
-        decline_btn.click()
-    except NoSuchElementException:
-        print('No cookie banner was found')
+    attempts = 0
+    while attempts < 10:
+        try:
+            decline_btn = find_elements(By.CLASS_NAME, 'cookie-banner-btn')[0]
+            decline_btn.click()
+            print('cookies declined')
+            return
+        except StaleElementReferenceException:
+            attempts += 1
+            time.sleep(1)
+            print(f'stale exception #{attempts} in decline_cookies() occured')
+        except (NoSuchElementException, TimeoutException):
+            attempts += 1
+            time.sleep(1)
+            print('Element is not here yet')
+        finally:
+            if attempts > 0:
+                print('stale exception for get_times() is now clear')
+            attempts = 0
 
 def get_last_time_element():
     take_screenshot()
@@ -131,6 +150,8 @@ def take_screenshot():
 def setup_data_file():
     try:
         os.remove('real_data.txt')
+        with open('real_data.txt', 'a') as file:
+            pass
     except:
         pass 
 
@@ -164,7 +185,7 @@ def upload_to_fb_collection():
     prices = []
 
     # Putting the data into lists to be POSTED
-    with open('real-data.txt','r') as file:
+    with open('real_data.txt','r') as file:
         hour1 = 0
         for line in file:
             line1 = line.strip()
@@ -179,12 +200,6 @@ def upload_to_fb_collection():
             dates.append(now.strftime(r'%d/%m/%Y'))
 
             hour1 = hour2
-
-    # connect to cloud db
-    cred = credentials.Certificate(r"firebase_key.json")
-    firebase_admin.initialize_app(cred)
-
-    db = firestore.client()
 
     # clearing old data
     clear_collection('dates_times_n_prices')
@@ -234,11 +249,11 @@ if __name__ == '__main__':
             data_length = count_lines_in_txt_file()
             print(data_length)
         else:
-
+            upload_to_fb_collection()
+            print('scrapper did a good job')
 
         print('-'*30)
         print(time.time() - start, 'secs')
-        print('scrapper did a good job')
     except Exception as err:
         file = "not-sound-1.wav"
         os.system("afplay " + file)
