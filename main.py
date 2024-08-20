@@ -217,7 +217,7 @@ if __name__ == '__main__':
 
         start = time.time()
 
-        while data_length < 50:
+        while data_length < 30:
             times = get_times()
             prices = get_prices()
 
