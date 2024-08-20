@@ -15,11 +15,6 @@ import json
 import os
 import traceback
 
-# database set up
-cred = credentials.Certificate(r"firebase_key.json")
-firebase_admin.initialize_app(cred)
-db = firestore.client()
-
 # query string with time and train stations set up
 now = datetime.now()
 selected_date = now.replace(hour=22, minute=0, second=0, microsecond=0) + timedelta(days=1)
