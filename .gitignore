@@ -1,5 +1,8 @@
 venv
+put_test.py
 firebase_key.json
 screenshots
 not-sound-1.wav
 real_data.txt
+.env
+__pycache__

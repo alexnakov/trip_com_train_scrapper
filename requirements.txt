@@ -1,3 +1,4 @@
 selenium
 firebase_admin
 requests
+python-dotenv

@@ -1,3 +1,4 @@
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from firebase_admin import credentials, firestore
 from selenium import webdriver
@@ -9,16 +10,20 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 import time
+import requests
 import firebase_admin
 import asyncio
 import json 
 import os
 import traceback
 
-# database set up
-cred = credentials.Certificate(r"firebase_key.json")
-firebase_admin.initialize_app(cred)
-db = firestore.client()
+
+DATA_POINTS = 100 # Number of journeys I want to scrape
+
+# .env
+load_dotenv()
+BIN_ID = os.getenv('BIN_ID')
+API_KEY = os.getenv('API_KEY')
 
 # query string with time and train stations set up
 now = datetime.now()
@@ -177,8 +182,10 @@ def clear_collection(collection_name):
             break
         docs = collection_ref.limit(batch_size).stream()
 
-def upload_to_fb_collection():        
+def upload_to_jsonbin():        
     now = datetime.now()
+
+    data = []
 
     dates = []
     times = []
@@ -196,28 +203,30 @@ def upload_to_fb_collection():
                 now += timedelta(days=1)
 
             times.append(line1[:5])
-            prices.append(line1[-5:])
+            prices.append(float(line1[-5:]))
             dates.append(now.strftime(r'%d/%m/%Y'))
 
             hour1 = hour2
 
-    # clearing old data
-    clear_collection('dates_times_n_prices')
-
-    batch = db.batch()
-
-    # jsonifying and uploading new data
     for i in range(len(dates)):
-        data_to_upload = {
-            'date': dates[i],
-            'time0': times[i],
-            'price': prices[i]
-        }
+        data.append([dates[i],times[i],prices[i]])
 
-        doc_ref = db.collection('dates_times_n_prices').document()
-        batch.set(doc_ref, data_to_upload)
+    lowest_price_data = {}
+    
+    for date, time, price in data:
+        if date not in lowest_price_data or price < lowest_price_data[date]:
+            lowest_price_data[date] = price
 
-    batch.commit()
+    print(lowest_price_data)
+
+    url = f'https://api.jsonbin.io/v3/b/{BIN_ID}'
+
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Master-Key': f'{API_KEY}',
+    }
+
+    req = requests.put(url, json=lowest_price_data, headers=headers)
 
 if __name__ == '__main__':
     try:
@@ -232,7 +241,7 @@ if __name__ == '__main__':
 
         start = time.time()
 
-        while data_length < 30:
+        while data_length < DATA_POINTS:
             times = get_times()
             prices = get_prices()
 
@@ -249,7 +258,7 @@ if __name__ == '__main__':
             data_length = count_lines_in_txt_file()
             print(data_length)
         else:
-            upload_to_fb_collection()
+            upload_to_jsonbin()
             print('scrapper did a good job')
 
         print('-'*30)
