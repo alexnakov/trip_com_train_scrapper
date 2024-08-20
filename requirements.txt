@@ -1,0 +1,2 @@
+selenium
+firebase_admin
