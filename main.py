@@ -17,13 +17,11 @@ import json
 import os
 import traceback
 
-
-DATA_POINTS = 100 # Number of journeys I want to scrape
-
 # .env
 load_dotenv()
 BIN_ID = os.getenv('BIN_ID')
 API_KEY = os.getenv('API_KEY')
+DATA_POINTS = int(os.getenv('DATA_POINTS')) # Number of journeys I want to scrape
 
 # query string with time and train stations set up
 now = datetime.now()
@@ -60,7 +58,7 @@ def decline_cookies():
             print('Element is not here yet')
         finally:
             if attempts > 0:
-                print('stale exception for get_times() is now clear')
+                print('stale exception for decline_cookies() is now clear')
             attempts = 0
 
 def get_last_time_element():
@@ -86,7 +84,7 @@ def get_times():
         try:
             all_h4s = find_elements(By.TAG_NAME, 'h4')
             return_list = list(map(lambda x:x.text, list(filter(lambda el: ':' in el.text, all_h4s))))
-            return return_list[::2] 
+            return return_list
         except StaleElementReferenceException:
             attempts += 1
             time.sleep(1)
@@ -133,9 +131,9 @@ def click_next_btn():
                 print('stale exception for click_next_btn() is now clear')
                 break
 
-def write_to_txt_file(hour,price):
+def write_to_txt_file(time0,time1,price):
     with open('real_data.txt','a') as file:
-        file.write(f'{hour},{price}\n')
+        file.write(f'{time0},{time1},{price}\n')
 
 def count_lines_in_txt_file():
     filename = 'real_data.txt'
@@ -188,7 +186,8 @@ def upload_to_jsonbin():
     data = []
 
     dates = []
-    times = []
+    times0 = []
+    times1 = []
     prices = []
 
     # Putting the data into lists to be POSTED
@@ -202,22 +201,21 @@ def upload_to_jsonbin():
             if hour2 < hour1:
                 now += timedelta(days=1)
 
-            times.append(line1[:5])
+            times0.append(line1[:5])
+            times1.append(line1[:5])
             prices.append(float(line1[-5:]))
             dates.append(now.strftime(r'%d/%m/%Y'))
 
             hour1 = hour2
 
     for i in range(len(dates)):
-        data.append([dates[i],times[i],prices[i]])
+        data.append([dates[i],times0[i],times1[i],prices[i]])
 
     lowest_price_data = {}
     
     for date, time, price in data:
         if date not in lowest_price_data or price < lowest_price_data[date]:
             lowest_price_data[date] = price
-
-    print(lowest_price_data)
 
     url = f'https://api.jsonbin.io/v3/b/{BIN_ID}'
 
@@ -227,6 +225,10 @@ def upload_to_jsonbin():
     }
 
     req = requests.put(url, json=lowest_price_data, headers=headers)
+
+def show_all_scrapped_data_for_vid():
+    with open('real_data.txt', 'r') as txt_file:
+        print(txt_file.read())
 
 if __name__ == '__main__':
     try:
@@ -239,18 +241,19 @@ if __name__ == '__main__':
         decline_cookies()
         time.sleep(2)
 
-        start = time.time()
+        start_t = time.time()
 
         while data_length < DATA_POINTS:
-            times = get_times()
+            times0 = get_times()[::2]
+            times1 = get_times()[1::2]
             prices = get_prices()
 
-            if len(times) < 1 or len(prices) < 1:
+            if len(times0) < 1 or len(prices) < 1 or len(times1) < 1:
                 print('something happened to len time or prices')
                 continue
 
-            for i in range(len(times)):
-                write_to_txt_file(times[i],prices[i])
+            for i in range(len(times0)):
+                write_to_txt_file(times0[i],times1[i],prices[i])
 
             scroll_to_next_btn(action_chains)
             click_next_btn()
@@ -258,11 +261,12 @@ if __name__ == '__main__':
             data_length = count_lines_in_txt_file()
             print(data_length)
         else:
-            upload_to_jsonbin()
-            print('scrapper did a good job')
+            if DATA_POINTS < 50:
+                show_all_scrapped_data_for_vid()
+            else:
+                upload_to_jsonbin()
+            print(f'Trip.com was scrapped successfully in time {time.time() - start_t:.2f} secs')
 
-        print('-'*30)
-        print(time.time() - start, 'secs')
     except Exception as err:
         file = "not-sound-1.wav"
         os.system("afplay " + file)
