@@ -202,7 +202,7 @@ def upload_to_jsonbin():
 
             times0.append(f"{line1[:5]}")
             times1.append(f"{line1[6:11]}")
-            prices.append(f"{float(line1[-5:])}")
+            prices.append(f"{float(line1[-5:].strip('£'))}")
             dates.append(f"{now.strftime(r'%d/%m/%Y')}")
 
             hour1 = hour2
@@ -243,6 +243,11 @@ def show_all_scrapped_data_for_vid():
     with open('real_data.txt', 'r') as txt_file:
         print(txt_file.read())
 
+def convert_seconds(seconds):
+    minutes = int(seconds // 60)  # Calculate whole minutes
+    remaining_seconds = int(seconds % 60)  # Calculate remaining whole seconds
+    return f"{minutes} mins and {remaining_seconds} secs"
+
 if __name__ == '__main__':
     try:
         data_length = 0
@@ -277,11 +282,11 @@ if __name__ == '__main__':
         else:
             if DATA_POINTS < 50:
                 show_all_scrapped_data_for_vid()
-            # else:
-            #     upload_to_jsonbin()
+            else:
+                upload_to_jsonbin()
 
-            upload_to_jsonbin()
-            print(f'Trip.com was scrapped successfully in time {time.time() - start_t:.2f} secs')
+            time_taken = convert_seconds(time.time() - start_t)
+            print(f'Trip.com was scrapped successfully in {time_taken}')
 
     except Exception as err:
         file = "not-sound-1.wav"
