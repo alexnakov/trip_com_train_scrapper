@@ -16,6 +16,7 @@ import asyncio
 import json 
 import os
 import traceback
+import pprint
 
 # .env
 load_dotenv()
@@ -25,7 +26,7 @@ DATA_POINTS = int(os.getenv('DATA_POINTS')) # Number of journeys I want to scrap
 
 # query string with time and train stations set up
 now = datetime.now()
-selected_date = now.replace(hour=22, minute=0, second=0, microsecond=0) + timedelta(days=1)
+selected_date = now.replace(hour=20, minute=0, second=0, microsecond=0) + timedelta(days=1)
 date_str = selected_date.strftime(f'%Y-%m-%d')
 trip_com_q_string = f'https://uk.trip.com/trains/list?departurecitycode=GB2278&arrivalcitycode=GB1594&departurecity=Sheffield&arrivalcity=London%20(Any)&departdate={date_str}&departhouript=22&departminuteipt=00&scheduleType=single&hidadultnum=1&hidchildnum=0&railcards=%7B%22YNG%22%3A1%7D&isregularlink=1&biztype=UK&locale=en-GB&curr=GBP'
 
@@ -183,8 +184,6 @@ def clear_collection(collection_name):
 def upload_to_jsonbin():        
     now = datetime.now()
 
-    data = []
-
     dates = []
     times0 = []
     times1 = []
@@ -201,30 +200,46 @@ def upload_to_jsonbin():
             if hour2 < hour1:
                 now += timedelta(days=1)
 
-            times0.append(line1[:5])
-            times1.append(line1[:5])
-            prices.append(float(line1[-5:]))
-            dates.append(now.strftime(r'%d/%m/%Y'))
+            times0.append(f"{line1[:5]}")
+            times1.append(f"{line1[6:11]}")
+            prices.append(f"{float(line1[-5:])}")
+            dates.append(f"{now.strftime(r'%d/%m/%Y')}")
 
             hour1 = hour2
 
+    data = []
     for i in range(len(dates)):
         data.append([dates[i],times0[i],times1[i],prices[i]])
 
-    lowest_price_data = {}
-    
-    for date, time, price in data:
-        if date not in lowest_price_data or price < lowest_price_data[date]:
-            lowest_price_data[date] = price
+    grouped_data = {}
+    for item in data:
+        date = item[0]
+        time0 = item[1]
+        time1 = item[2]
+        price = item[3]
 
-    url = f'https://api.jsonbin.io/v3/b/{BIN_ID}'
+        if date not in grouped_data:
+            grouped_data[date] = []
 
-    headers = {
-        'Content-Type': 'application/json',
-        'X-Master-Key': f'{API_KEY}',
-    }
+        grouped_data[date].append([price ,time0, time1])
 
-    req = requests.put(url, json=lowest_price_data, headers=headers)
+    # Sorting based on price  
+    for key, val in grouped_data.items():
+        new_val = sorted(val, key=lambda x: float(x[0]))
+        grouped_data[key] = new_val
+
+    pprint.pp(grouped_data)
+
+    # url = f'https://api.jsonbin.io/v3/b/{BIN_ID}'
+
+    # headers = {
+    #     'Content-Type': 'application/json',
+    #     'X-Master-Key': f'{API_KEY}',
+    # }
+
+    # start_of_put_req = time.time()
+    # req = requests.put(url, json=lowest_price_data, headers=headers)
+    # print(f'Put request completed in {time.time()-start_of_put_req:.2f} secs')
 
 def show_all_scrapped_data_for_vid():
     with open('real_data.txt', 'r') as txt_file:
@@ -246,6 +261,7 @@ if __name__ == '__main__':
         while data_length < DATA_POINTS:
             times0 = get_times()[::2]
             times1 = get_times()[1::2]
+            times1 = list(map(lambda hour: hour[:5], times1))
             prices = get_prices()
 
             if len(times0) < 1 or len(prices) < 1 or len(times1) < 1:
@@ -263,8 +279,10 @@ if __name__ == '__main__':
         else:
             if DATA_POINTS < 50:
                 show_all_scrapped_data_for_vid()
-            else:
-                upload_to_jsonbin()
+            # else:
+            #     upload_to_jsonbin()
+
+            upload_to_jsonbin()
             print(f'Trip.com was scrapped successfully in time {time.time() - start_t:.2f} secs')
 
     except Exception as err:
