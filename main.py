@@ -228,18 +228,16 @@ def upload_to_jsonbin():
         new_val = sorted(val, key=lambda x: float(x[0]))
         grouped_data[key] = new_val
 
-    pprint.pp(grouped_data)
+    url = f'https://api.jsonbin.io/v3/b/{BIN_ID}'
 
-    # url = f'https://api.jsonbin.io/v3/b/{BIN_ID}'
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Master-Key': f'{API_KEY}',
+    }
 
-    # headers = {
-    #     'Content-Type': 'application/json',
-    #     'X-Master-Key': f'{API_KEY}',
-    # }
-
-    # start_of_put_req = time.time()
-    # req = requests.put(url, json=lowest_price_data, headers=headers)
-    # print(f'Put request completed in {time.time()-start_of_put_req:.2f} secs')
+    start_of_put_req = time.time()
+    req = requests.put(url, json=lowest_price_data, headers=headers)
+    print(f'Put request completed in {time.time()-start_of_put_req:.2f} secs')
 
 def show_all_scrapped_data_for_vid():
     with open('real_data.txt', 'r') as txt_file:
