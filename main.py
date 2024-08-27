@@ -268,7 +268,6 @@ if __name__ == '__main__':
             prices = get_prices()
 
             if len(times0) < 1 or len(prices) < 1 or len(times1) < 1:
-                print('something happened to len time or prices')
                 continue
 
             for i in range(len(times0)):
@@ -282,8 +281,6 @@ if __name__ == '__main__':
         else:
             if DATA_POINTS < 50:
                 show_all_scrapped_data_for_vid()
-            else:
-                upload_to_jsonbin()
 
             time_taken = convert_seconds(time.time() - start_t)
             print(f'Trip.com was scrapped successfully in {time_taken}')
