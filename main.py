@@ -232,7 +232,7 @@ def get_next_trip_q_string():
             last_line = lines[-1]
             last_date = last_line[:10]
             last_date = datetime.strptime(last_date, r'%d/%m/%Y').strftime(r'%Y-%m-%d')
-            last_hour = last_line[10:12]
+            last_hour = last_line[11:13]
             new_trip_com_q_string = f'https://uk.trip.com/trains/list?departurecitycode=GB2278&arrivalcitycode=GB1594&departurecity=Sheffield&arrivalcity=London%20(Any)&departdate={last_date}&departhouript={last_hour}&departminuteipt=00&scheduleType=single&hidadultnum=1&hidchildnum=0&railcards=%7B%22YNG%22%3A1%7D&isregularlink=1&biztype=UK&locale=en-GB&curr=GBP'
             return new_trip_com_q_string
 
@@ -247,19 +247,17 @@ def convert_seconds(seconds):
 
 if __name__ == '__main__':
     program_tries = 0
+    setup_data_file()
+    data_length = 0
+    start_t = time.time()
     while program_tries < 5:
         driver = webdriver.Chrome()
         action_chains = ActionChains(driver, 100)
         driver.get(trip_com_q_string)
+
         try:
-            data_length = 0
-            setup_data_file()
-            
             decline_cookies()
-            time.sleep(2)
-
-            start_t = time.time()
-
+            time.sleep(1.7)
             while data_length < DATA_POINTS:
                 dates, times0, times1 = get_dates_and_times()
                 times1 = list(map(lambda hour: hour[:5], times1)) # Clean up for +1 day roll-over
