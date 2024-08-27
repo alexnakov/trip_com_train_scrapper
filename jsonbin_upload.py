@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 import json
 
-with open('real_data.txt','r') as txt_file:
+with open('test_data_for_upload.txt','r') as txt_file:
     entered_dates = []
     data = []
     for _ in txt_file:
@@ -37,10 +37,19 @@ with open('real_data.txt','r') as txt_file:
             data.append([date, time0, time1, price])
             entered_dates.append(date)
 
-with open('json_data.json','w') as json_file:
-    json.dump(data, json_file)
+# with open('json_data0.json','w') as json_file:
+#     json.dump(data, json_file)
 
-
+# Currently 4 data pts w the date
+# dummy_line_arr = ["2024-08-28", "21:01", "23:16", "16.80", "20:00", "22:07", "20.10", "20:00", "22:07", "20.10", "20:00", "22:07", "20.10"]
+# data2 = []
+# for i in range(90):
+#     data2.append(dummy_line_arr)
+# json_string = json.dumps(data2)
+# size_in_bytes = len(json_string.encode('utf-8'))
+# size_in_bits = size_in_bytes * 8
+# size_in_kilobits = size_in_bits / 1000
+# print(f"JSON file size: {size_in_kilobits:.2f} kilobits")
 
 load_dotenv()
 BIN_ID = os.getenv('BIN_ID')
@@ -51,4 +60,4 @@ headers = {
   'X-Master-Key': f'{API_KEY}',
 }
 
-# req = requests.put(url, json=data, headers=headers)
+req = requests.put(url, json=data, headers=headers)
