@@ -23,8 +23,8 @@ load_dotenv()
 BIN_ID = os.getenv('BIN_ID')
 API_KEY = os.getenv('API_KEY')
 DATA_POINTS = int(os.getenv('DATA_POINTS')) # Number of journeys I want to scrape
-DISPLAY_DATE_FORMAT = r'%Y-%m-%d'
-TRIP_COM_DATE_FORMAT = r'%d/%m/%Y'
+TRIP_COM_DATE_FORMAT = r'%Y-%m-%d'
+DISPLAY_DATE_FORMAT = r'%d/%m/%Y'
 
 # query string: Tomorrow 8pm.
 now = datetime.now()
@@ -65,15 +65,17 @@ def find_elements(selector, query):
             time.sleep(1)
     return "Could not find element you were looking for"
 
-def get_times():
+def get_dates_and_times():
+    global selected_date
     take_screenshot()
     attempts = 0
     while attempts < 10:
         try:
             all_h4s = find_elements(By.TAG_NAME, 'h4')
-            return_list = list(map(lambda x:x.text, list(filter(lambda el: ':' in el.text, all_h4s))))
-            
-            times0 = return_list[::2]
+            times_list = list(map(lambda x:x.text, list(filter(lambda el: ':' in el.text, all_h4s))))
+            times0 = times_list[::2]
+            dates = []
+
             hour1 = 0
             for time_txt in times0:
                 hour2 = int(time_txt[:2])
@@ -81,15 +83,16 @@ def get_times():
                     selected_date += timedelta(days=1)
 
                 hour1 = hour2
+                dates.append(selected_date.strftime(DISPLAY_DATE_FORMAT))
 
-            return return_list
+            return [dates, times_list[::2], times_list[1::2]]
         except StaleElementReferenceException:
             attempts += 1
             time.sleep(1)
-            print(f'stale exception #{attempts} in get_times() occured')
+            print(f'stale exception #{attempts} in get_dates_and_times() occured')
         finally:
             if attempts > 0:
-                print('stale exception for get_times() is now clear')
+                print('stale exception for get_dates_and_times() is now clear')
 
 def get_prices():
     take_screenshot()
@@ -107,9 +110,9 @@ def get_prices():
             if attempts > 0:
                 print('stale exception for get_prices() is now clear')
 
-def write_to_txt_file(time0,time1,price):
+def write_to_txt_file(date, time0, time1, price):
     with open('real_data.txt','a') as file:
-        file.write(f'{time0},{time1},{price}\n')
+        file.write(f'{date},{time0},{time1},{price}\n')
 
 def count_lines_in_txt_file():
     filename = 'real_data.txt'
@@ -243,56 +246,48 @@ def convert_seconds(seconds):
     return f"{minutes} mins and {remaining_seconds} secs"
 
 if __name__ == '__main__':
-    program_tries = 0
-    while program_tries < 5:
-        driver = webdriver.Chrome()
-        action_chains = ActionChains(driver, 100)
-        driver.get(trip_com_q_string)
-        try:
-            data_length = 0
-            setup_data_file()
-            
-            decline_cookies()
-            time.sleep(2)
+    driver = webdriver.Chrome()
+    action_chains = ActionChains(driver, 100)
+    driver.get(trip_com_q_string)
+    try:
+        data_length = 0
+        setup_data_file()
+        
+        decline_cookies()
+        time.sleep(2)
 
-            start_t = time.time()
+        start_t = time.time()
 
-            while data_length < DATA_POINTS:
-                times0 = get_times()[::2]
-                times1 = get_times()[1::2]
-                times1 = list(map(lambda hour: hour[:5], times1))
-                prices = get_prices()
+        while data_length < DATA_POINTS:
+            dates, times0, times1 = get_dates_and_times()
+            times1 = list(map(lambda hour: hour[:5], times1)) # Clean up for +1 day roll-over
+            prices = get_prices()
 
-                if len(times0) < 1 or len(prices) < 1 or len(times1) < 1:
-                    continue
+            if len(times0) < 1 or len(prices) < 1:
+                continue
 
-                for i in range(len(times0)):
-                    write_to_txt_file(times0[i],times1[i],prices[i])
+            for i in range(len(times0)):
+                write_to_txt_file(dates[i],times0[i],times1[i],prices[i])
 
-                scroll_to_next_btn(action_chains)
-                click_next_btn()
-                time.sleep(0.3)
-                data_length = count_lines_in_txt_file()
-                print(data_length)
-            else:
-                if DATA_POINTS < 50:
-                    show_all_scrapped_data_for_vid()
+            scroll_to_next_btn(action_chains)
+            click_next_btn()
+            time.sleep(0.3)
+            data_length = count_lines_in_txt_file()
+            print(data_length)
+        else:
+            if DATA_POINTS < 50:
+                show_all_scrapped_data_for_vid()
 
-                time_taken = convert_seconds(time.time() - start_t)
-                print(f'Trip.com was scrapped successfully in {time_taken}')
-                raise TypeError('On Purpose')
-        except Exception as err:
-            # file = "not-sound-1.wav"
-            # os.system("afplay " + file)
-            print('Something unexpected happened')
-            print('This is what happened ', err)
-            print(f'Trying again: Try #{program_tries}')
-            traceback.print_exc()
-            print('-------------------')
-            program_tries += 1
-            add_date_to_hour_price_data()
-            trip_com_q_string = get_next_trip_q_string()
-            print(trip_com_q_string)
+            time_taken = convert_seconds(time.time() - start_t)
+            print(f'Trip.com was scrapped successfully in {time_taken}')
+    except Exception as err:
+        # file = "not-sound-1.wav"
+        # os.system("afplay " + file)
+        print('Something unexpected happened')
+        print('This is what happened ', err)
+        print(f'Trying again: Try #{program_tries}')
+        traceback.print_exc()
+        print('-------------------')
 
 
-        driver.quit()
+    driver.quit()
