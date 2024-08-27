@@ -263,6 +263,9 @@ if __name__ == '__main__':
             times1 = list(map(lambda hour: hour[:5], times1)) # Clean up for +1 day roll-over
             prices = get_prices()
 
+            if len(times0) < 1 or len(prices) < 1:
+                continue
+
             for i in range(len(times0)):
                 write_to_txt_file(dates[i],times0[i],times1[i],prices[i])
 
