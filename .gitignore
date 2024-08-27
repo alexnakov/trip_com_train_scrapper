@@ -4,5 +4,7 @@ firebase_key.json
 screenshots
 not-sound-1.wav
 real_data.txt
+fb_key.json
+do_it.py
 .env
 __pycache__
