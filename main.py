@@ -181,7 +181,7 @@ def clear_collection(collection_name):
             break
         docs = collection_ref.limit(batch_size).stream()
 
-def place_dates_on_hour_price_date():
+def place_dates_on_hour_price_data():
     dates = []
     with open('real_data.txt', 'r') as file:
         all_lines = file.readlines()
