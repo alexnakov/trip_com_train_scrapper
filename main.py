@@ -83,7 +83,7 @@ def get_dates_and_times():
                     selected_date += timedelta(days=1)
 
                 hour1 = hour2
-                dates.append(selected_date.strftime(DISPLAY_DATE_FORMAT))
+                dates.append(selected_date.strftime(TRIP_COM_DATE_FORMAT))
 
             return [dates, times_list[::2], times_list[1::2]]
         except StaleElementReferenceException:
