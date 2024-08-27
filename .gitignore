@@ -7,4 +7,5 @@ real_data.txt
 fb_key.json
 do_it.py
 .env
+real_data copy.txt
 __pycache__
