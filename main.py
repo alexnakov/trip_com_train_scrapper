@@ -246,12 +246,14 @@ def convert_seconds(seconds):
     return f"{minutes} mins and {remaining_seconds} secs"
 
 if __name__ == '__main__':
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')
     program_tries = 0
     setup_data_file()
     data_length = 0
     start_t = time.time()
     while program_tries < 5:
-        driver = webdriver.Chrome()
+        driver = webdriver.Chrome(options=options)
         action_chains = ActionChains(driver, 100)
         driver.get(trip_com_q_string)
 
@@ -280,6 +282,7 @@ if __name__ == '__main__':
 
                 time_taken = convert_seconds(time.time() - start_t)
                 print(f'Trip.com was scrapped successfully in {time_taken}')
+                break
         except Exception as err:
             print(f'Trying again: Try #{program_tries}')
             traceback.print_exc()
@@ -287,4 +290,3 @@ if __name__ == '__main__':
             program_tries += 1
             trip_com_q_string = get_next_trip_q_string()
             driver.quit()
-            
