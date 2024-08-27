@@ -18,28 +18,20 @@ import os
 import traceback
 import pprint
 
-# .env
+# .env and constants
 load_dotenv()
 BIN_ID = os.getenv('BIN_ID')
 API_KEY = os.getenv('API_KEY')
 DATA_POINTS = int(os.getenv('DATA_POINTS')) # Number of journeys I want to scrape
+TRIP_COM_DATE_FORMAT = r'%Y-%m-%d'
+DISPLAY_DATE_FORMAT = r'%d/%m/%Y'
 
-# query string with time and train stations set up
+# query string: Tomorrow 8pm.
 now = datetime.now()
 selected_date = now.replace(hour=20, minute=0, second=0, microsecond=0) + timedelta(days=1)
-date_str = selected_date.strftime(f'%Y-%m-%d')
-trip_com_q_string = f'https://uk.trip.com/trains/list?departurecitycode=GB2278&arrivalcitycode=GB1594&departurecity=Sheffield&arrivalcity=London%20(Any)&departdate={date_str}&departhouript=22&departminuteipt=00&scheduleType=single&hidadultnum=1&hidchildnum=0&railcards=%7B%22YNG%22%3A1%7D&isregularlink=1&biztype=UK&locale=en-GB&curr=GBP'
-
-def find_elements(selector, query):
-    """ Tries to find an element within 15 secs and returns it. """
-    attempts = 0
-    while attempts < 10:
-        try:
-            return WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((selector, query)))
-        except (NoSuchElementException, TimeoutException, StaleElementReferenceException):
-            attempts += 1
-            time.sleep(1)
-    return "Could not find element you were looking for"
+date_str = selected_date.strftime(TRIP_COM_DATE_FORMAT)
+date_hour = selected_date.hour
+trip_com_q_string = f'https://uk.trip.com/trains/list?departurecitycode=GB2278&arrivalcitycode=GB1594&departurecity=Sheffield&arrivalcity=London%20(Any)&departdate={date_str}&departhouript={date_hour}&departminuteipt=00&scheduleType=single&hidadultnum=1&hidchildnum=0&railcards=%7B%22YNG%22%3A1%7D&isregularlink=1&biztype=UK&locale=en-GB&curr=GBP'
            
 def decline_cookies():
     attempts = 0
@@ -62,37 +54,45 @@ def decline_cookies():
                 print('stale exception for decline_cookies() is now clear')
             attempts = 0
 
-def get_last_time_element():
-    take_screenshot()
+def find_elements(selector, query):
+    """ Tries to find an element within 15 secs and returns it. """
     attempts = 0
     while attempts < 10:
         try:
-            all_h4s = find_elements(By.TAG_NAME, 'h4')
-            return_list = list(filter(lambda el: ':' in el.text, all_h4s))
-            return return_list[-2]
-        except StaleElementReferenceException:
+            return WebDriverWait(driver, 15).until(EC.presence_of_all_elements_located((selector, query)))
+        except (NoSuchElementException, TimeoutException, StaleElementReferenceException):
             attempts += 1
             time.sleep(1)
-            print(f'stale exception #{attempts} in get_last_time_element() occured')
-        finally:
-            if attempts > 0:
-                print('stale exception for get_last_time_element() is now clear')
+    return "Could not find element you were looking for"
 
-def get_times():
+def get_dates_and_times():
+    global selected_date
     take_screenshot()
     attempts = 0
     while attempts < 10:
         try:
             all_h4s = find_elements(By.TAG_NAME, 'h4')
-            return_list = list(map(lambda x:x.text, list(filter(lambda el: ':' in el.text, all_h4s))))
-            return return_list
+            times_list = list(map(lambda x:x.text, list(filter(lambda el: ':' in el.text, all_h4s))))
+            times0 = times_list[::2]
+            dates = []
+
+            hour1 = 0
+            for time_txt in times0:
+                hour2 = int(time_txt[:2])
+                if hour2 < hour1:
+                    selected_date += timedelta(days=1)
+
+                hour1 = hour2
+                dates.append(selected_date.strftime(DISPLAY_DATE_FORMAT))
+
+            return [dates, times_list[::2], times_list[1::2]]
         except StaleElementReferenceException:
             attempts += 1
             time.sleep(1)
-            print(f'stale exception #{attempts} in get_times() occured')
+            print(f'stale exception #{attempts} in get_dates_and_times() occured')
         finally:
             if attempts > 0:
-                print('stale exception for get_times() is now clear')
+                print('stale exception for get_dates_and_times() is now clear')
 
 def get_prices():
     take_screenshot()
@@ -110,31 +110,9 @@ def get_prices():
             if attempts > 0:
                 print('stale exception for get_prices() is now clear')
 
-def click_next_btn():
-    take_screenshot()
-    attempts = 0
-    while attempts < 10:
-        try:
-            all_divs = find_elements(By.TAG_NAME, 'div')
-            btn_as_list = list(filter(lambda el: 'View later trains' in el.text and len(el.text) == 17, all_divs))
-            if len(btn_as_list) == 0:
-                pass
-            else:
-                btn_as_list[0].click()
-                attempts = 0
-                break
-        except StaleElementReferenceException:
-            attempts += 1
-            time.sleep(1)
-            print(f'stale exception #{attempts} in click_next_btn() occured')
-        finally:
-            if attempts > 0:
-                print('stale exception for click_next_btn() is now clear')
-                break
-
-def write_to_txt_file(time0,time1,price):
+def write_to_txt_file(date, time0, time1, price):
     with open('real_data.txt','a') as file:
-        file.write(f'{time0},{time1},{price}\n')
+        file.write(f'{date},{time0},{time1},{price}\n')
 
 def count_lines_in_txt_file():
     filename = 'real_data.txt'
@@ -159,11 +137,49 @@ def setup_data_file():
     except:
         pass 
 
+def get_last_time_element():
+    take_screenshot()
+    attempts = 0
+    while attempts < 10:
+        try:
+            all_h4s = find_elements(By.TAG_NAME, 'h4')
+            return_list = list(filter(lambda el: ':' in el.text, all_h4s))
+            return return_list[-2]
+        except StaleElementReferenceException:
+            attempts += 1
+            time.sleep(1)
+            print(f'stale exception #{attempts} in get_last_time_element() occured')
+        finally:
+            if attempts > 0:
+                print('stale exception for get_last_time_element() is now clear')
+
 def scroll_to_next_btn(action_chains):
     last_time_element = get_last_time_element()
     take_screenshot()
     action_chains.move_to_element(last_time_element).scroll_by_amount(0, 200).perform()
     take_screenshot()
+
+def click_next_btn():
+    take_screenshot()
+    attempts = 0
+    while attempts < 10:
+        try:
+            all_divs = find_elements(By.TAG_NAME, 'div')
+            btn_as_list = list(filter(lambda el: 'View later trains' in el.text and len(el.text) == 17, all_divs))
+            if len(btn_as_list) == 0:
+                pass
+            else:
+                btn_as_list[0].click()
+                attempts = 0
+                break
+        except StaleElementReferenceException:
+            attempts += 1
+            time.sleep(1)
+            print(f'stale exception #{attempts} in click_next_btn() occured')
+        finally:
+            if attempts > 0:
+                print('stale exception for click_next_btn() is now clear')
+                break
 
 def clear_collection(collection_name):
     collection_ref = db.collection(collection_name)
@@ -181,63 +197,44 @@ def clear_collection(collection_name):
             break
         docs = collection_ref.limit(batch_size).stream()
 
-def upload_to_jsonbin():        
-    now = datetime.now()
-
+def add_date_to_hour_price_data():
     dates = []
     times0 = []
     times1 = []
     prices = []
-
-    # Putting the data into lists to be POSTED
-    with open('real_data.txt','r') as file:
+    with open('real_data.txt', 'r') as file:
+        all_lines = file.readlines()
         hour1 = 0
         for line in file:
-            line1 = line.strip()
-
-            hour2 = int(line1[:2])
-
+            stripped_line = line.strip()
+            hour2 = int(stripped_line[:2])
             if hour2 < hour1:
-                now += timedelta(days=1)
+                selected_date += timedelta(days=1)
 
-            times0.append(f"{line1[:5]}")
-            times1.append(f"{line1[6:11]}")
-            prices.append(f"{float(line1[-5:].strip('£'))}")
-            dates.append(f"{now.strftime(r'%d/%m/%Y')}")
+            dates.append(f"{selected_date.strftime(r'%d/%m/%Y')}")
+            times0.append(stripped_line[:5])
+            times1.append(stripped_line[6:11])
+            prices.append(stripped_line[12:])
 
             hour1 = hour2
 
-    data = []
-    for i in range(len(dates)):
-        data.append([dates[i],times0[i],times1[i],prices[i]])
+    with open('real_data.txt','w') as file:
+        if len(dates) == len(times0):
+            for i in range(len(times0)):
+                file.writeline(f'{dates[i]},{times0[i]},{times1[i]},{prices[i]}')
+        else:
+            print('Lengths of dates and times data are different')
 
-    grouped_data = {}
-    for item in data:
-        date = item[0]
-        time0 = item[1]
-        time1 = item[2]
-        price = item[3]
-
-        if date not in grouped_data:
-            grouped_data[date] = []
-
-        grouped_data[date].append([price ,time0, time1])
-
-    # Sorting based on price  
-    for key, val in grouped_data.items():
-        new_val = sorted(val, key=lambda x: float(x[0]))
-        grouped_data[key] = new_val
-
-    url = f'https://api.jsonbin.io/v3/b/{BIN_ID}'
-
-    headers = {
-        'Content-Type': 'application/json',
-        'X-Master-Key': f'{API_KEY}',
-    }
-
-    start_of_put_req = time.time()
-    req = requests.put(url, json=lowest_price_data, headers=headers)
-    print(f'Put request completed in {time.time()-start_of_put_req:.2f} secs')
+def get_next_trip_q_string():
+    with open('real_data.txt','r') as file:
+        lines = file.readlines()
+        if lines:
+            last_line = lines[-1]
+            last_date = last_line[:10]
+            last_date = datetime.strptime(r'%d/%m/%Y', last_date).strftime(r'%Y-%m-%d')
+            last_hour = last_line[10:12]
+            new_trip_com_q_string = f'https://uk.trip.com/trains/list?departurecitycode=GB2278&arrivalcitycode=GB1594&departurecity=Sheffield&arrivalcity=London%20(Any)&departdate={last_date}&departhouript={last_hour}&departminuteipt=00&scheduleType=single&hidadultnum=1&hidchildnum=0&railcards=%7B%22YNG%22%3A1%7D&isregularlink=1&biztype=UK&locale=en-GB&curr=GBP'
+            return new_trip_com_q_string
 
 def show_all_scrapped_data_for_vid():
     with open('real_data.txt', 'r') as txt_file:
@@ -249,29 +246,28 @@ def convert_seconds(seconds):
     return f"{minutes} mins and {remaining_seconds} secs"
 
 if __name__ == '__main__':
+    driver = webdriver.Chrome()
+    action_chains = ActionChains(driver, 100)
+    driver.get(trip_com_q_string)
     try:
         data_length = 0
         setup_data_file()
-        driver = webdriver.Chrome()
-        action_chains = ActionChains(driver, 100)
-
-        driver.get(trip_com_q_string)
+        
         decline_cookies()
         time.sleep(2)
 
         start_t = time.time()
 
         while data_length < DATA_POINTS:
-            times0 = get_times()[::2]
-            times1 = get_times()[1::2]
-            times1 = list(map(lambda hour: hour[:5], times1))
+            dates, times0, times1 = get_dates_and_times()
+            times1 = list(map(lambda hour: hour[:5], times1)) # Clean up for +1 day roll-over
             prices = get_prices()
 
-            if len(times0) < 1 or len(prices) < 1 or len(times1) < 1:
+            if len(times0) < 1 or len(prices) < 1:
                 continue
 
             for i in range(len(times0)):
-                write_to_txt_file(times0[i],times1[i],prices[i])
+                write_to_txt_file(dates[i],times0[i],times1[i],prices[i])
 
             scroll_to_next_btn(action_chains)
             click_next_btn()
@@ -284,12 +280,14 @@ if __name__ == '__main__':
 
             time_taken = convert_seconds(time.time() - start_t)
             print(f'Trip.com was scrapped successfully in {time_taken}')
-
     except Exception as err:
-        file = "not-sound-1.wav"
-        os.system("afplay " + file)
+        # file = "not-sound-1.wav"
+        # os.system("afplay " + file)
         print('Something unexpected happened')
         print('This is what happened ', err)
+        print(f'Trying again: Try #{program_tries}')
         traceback.print_exc()
+        print('-------------------')
+
 
     driver.quit()
