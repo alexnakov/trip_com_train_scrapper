@@ -24,7 +24,7 @@ BIN_ID = os.getenv('BIN_ID')
 API_KEY = os.getenv('API_KEY')
 DATA_POINTS = int(os.getenv('DATA_POINTS')) # Number of journeys I want to scrape
 
-# query string with time and train stations set up
+# query string: Tomorrow 8pm.
 now = datetime.now()
 selected_date = now.replace(hour=20, minute=0, second=0, microsecond=0) + timedelta(days=1)
 date_str = selected_date.strftime(f'%Y-%m-%d')
@@ -181,63 +181,22 @@ def clear_collection(collection_name):
             break
         docs = collection_ref.limit(batch_size).stream()
 
-def upload_to_jsonbin():        
-    now = datetime.now()
-
+def place_dates_on_hour_price_date():
     dates = []
-    times0 = []
-    times1 = []
-    prices = []
-
-    # Putting the data into lists to be POSTED
-    with open('real_data.txt','r') as file:
+    with open('real_data.txt', 'r') as file:
+        all_lines = file.readlines()
         hour1 = 0
         for line in file:
-            line1 = line.strip()
-
-            hour2 = int(line1[:2])
-
+            stripped_line = line.strip()
+            hour2 = int(stripped_line[:2])
             if hour2 < hour1:
-                now += timedelta(days=1)
+                selected_date += timedelta(days=1)
 
-            times0.append(f"{line1[:5]}")
-            times1.append(f"{line1[6:11]}")
-            prices.append(f"{float(line1[-5:].strip('£'))}")
-            dates.append(f"{now.strftime(r'%d/%m/%Y')}")
-
+            dates.append(f"{selected_date.strftime(r'%d/%m/%Y')}")
             hour1 = hour2
 
-    data = []
-    for i in range(len(dates)):
-        data.append([dates[i],times0[i],times1[i],prices[i]])
-
-    grouped_data = {}
-    for item in data:
-        date = item[0]
-        time0 = item[1]
-        time1 = item[2]
-        price = item[3]
-
-        if date not in grouped_data:
-            grouped_data[date] = []
-
-        grouped_data[date].append([price ,time0, time1])
-
-    # Sorting based on price  
-    for key, val in grouped_data.items():
-        new_val = sorted(val, key=lambda x: float(x[0]))
-        grouped_data[key] = new_val
-
-    url = f'https://api.jsonbin.io/v3/b/{BIN_ID}'
-
-    headers = {
-        'Content-Type': 'application/json',
-        'X-Master-Key': f'{API_KEY}',
-    }
-
-    start_of_put_req = time.time()
-    req = requests.put(url, json=lowest_price_data, headers=headers)
-    print(f'Put request completed in {time.time()-start_of_put_req:.2f} secs')
+    with open('real_data.txt','w') as file:
+        file.writelines(dates[i] + all_lines[i] for i in range(len(all_lines)))
 
 def show_all_scrapped_data_for_vid():
     with open('real_data.txt', 'r') as txt_file:
@@ -249,6 +208,7 @@ def convert_seconds(seconds):
     return f"{minutes} mins and {remaining_seconds} secs"
 
 if __name__ == '__main__':
+    program_tries = 0
     try:
         data_length = 0
         setup_data_file()
