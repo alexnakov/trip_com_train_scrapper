@@ -231,7 +231,7 @@ def get_next_trip_q_string():
         if lines:
             last_line = lines[-1]
             last_date = last_line[:10]
-            last_date = datetime.strptime(r'%d/%m/%Y', last_date).strftime(r'%Y-%m-%d')
+            last_date = datetime.strptime(last_date, r'%d/%m/%Y').strftime(r'%Y-%m-%d')
             last_hour = last_line[10:12]
             new_trip_com_q_string = f'https://uk.trip.com/trains/list?departurecitycode=GB2278&arrivalcitycode=GB1594&departurecity=Sheffield&arrivalcity=London%20(Any)&departdate={last_date}&departhouript={last_hour}&departminuteipt=00&scheduleType=single&hidadultnum=1&hidchildnum=0&railcards=%7B%22YNG%22%3A1%7D&isregularlink=1&biztype=UK&locale=en-GB&curr=GBP'
             return new_trip_com_q_string
@@ -246,48 +246,47 @@ def convert_seconds(seconds):
     return f"{minutes} mins and {remaining_seconds} secs"
 
 if __name__ == '__main__':
-    driver = webdriver.Chrome()
-    action_chains = ActionChains(driver, 100)
-    driver.get(trip_com_q_string)
-    try:
-        data_length = 0
-        setup_data_file()
-        
-        decline_cookies()
-        time.sleep(2)
+    program_tries = 0
+    while program_tries < 5:
+        driver = webdriver.Chrome()
+        action_chains = ActionChains(driver, 100)
+        driver.get(trip_com_q_string)
+        try:
+            data_length = 0
+            setup_data_file()
+            
+            decline_cookies()
+            time.sleep(2)
 
-        start_t = time.time()
+            start_t = time.time()
 
-        while data_length < DATA_POINTS:
-            dates, times0, times1 = get_dates_and_times()
-            times1 = list(map(lambda hour: hour[:5], times1)) # Clean up for +1 day roll-over
-            prices = get_prices()
+            while data_length < DATA_POINTS:
+                dates, times0, times1 = get_dates_and_times()
+                times1 = list(map(lambda hour: hour[:5], times1)) # Clean up for +1 day roll-over
+                prices = get_prices()
 
-            if len(times0) < 1 or len(prices) < 1:
-                continue
+                if len(times0) < 1 or len(prices) < 1:
+                    continue
 
-            for i in range(len(times0)):
-                write_to_txt_file(dates[i],times0[i],times1[i],prices[i])
+                for i in range(len(times0)):
+                    write_to_txt_file(dates[i],times0[i],times1[i],prices[i])
 
-            scroll_to_next_btn(action_chains)
-            click_next_btn()
-            time.sleep(0.3)
-            data_length = count_lines_in_txt_file()
-            print(data_length)
-        else:
-            if DATA_POINTS < 50:
-                show_all_scrapped_data_for_vid()
+                scroll_to_next_btn(action_chains)
+                click_next_btn()
+                time.sleep(0.3)
+                data_length = count_lines_in_txt_file()
+                print(data_length)
+            else:
+                if DATA_POINTS < 50:
+                    show_all_scrapped_data_for_vid()
 
-            time_taken = convert_seconds(time.time() - start_t)
-            print(f'Trip.com was scrapped successfully in {time_taken}')
-    except Exception as err:
-        # file = "not-sound-1.wav"
-        # os.system("afplay " + file)
-        print('Something unexpected happened')
-        print('This is what happened ', err)
-        print(f'Trying again: Try #{program_tries}')
-        traceback.print_exc()
-        print('-------------------')
-
-
-    driver.quit()
+                time_taken = convert_seconds(time.time() - start_t)
+                print(f'Trip.com was scrapped successfully in {time_taken}')
+        except Exception as err:
+            print(f'Trying again: Try #{program_tries}')
+            traceback.print_exc()
+            print('-------------------')
+            program_tries += 1
+            trip_com_q_string = get_next_trip_q_string()
+            driver.quit()
+            
