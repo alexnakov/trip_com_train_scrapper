@@ -252,7 +252,7 @@ if __name__ == '__main__':
     setup_data_file()
     data_length = 0
     start_t = time.time()
-    while program_tries < 5:
+    while program_tries < 10:
         driver = webdriver.Chrome(options=options)
         action_chains = ActionChains(driver, 100)
         driver.get(trip_com_q_string)
