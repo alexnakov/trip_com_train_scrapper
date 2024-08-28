@@ -9,4 +9,5 @@ do_it.py
 .env
 real_data copy.txt
 real_data copy 2.txt
+real_data copy 3.txt
 __pycache__
