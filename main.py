@@ -28,7 +28,8 @@ DISPLAY_DATE_FORMAT = r'%d/%m/%Y'
 
 # query string: Tomorrow 8pm.
 now = datetime.now()
-selected_date = now.replace(hour=20, minute=0, second=0, microsecond=0) + timedelta(days=1)
+now = datetime(2024, 10, 19) # Specific selected date
+selected_date = now.replace(hour=13, minute=0, second=0, microsecond=0) + timedelta(days=1)
 date_str = selected_date.strftime(TRIP_COM_DATE_FORMAT)
 date_hour = selected_date.hour
 trip_com_q_string = f'https://uk.trip.com/trains/list?departurecitycode=GB2278&arrivalcitycode=GB1594&departurecity=Sheffield&arrivalcity=London%20(Any)&departdate={date_str}&departhouript={date_hour}&departminuteipt=00&scheduleType=single&hidadultnum=1&hidchildnum=0&railcards=%7B%22YNG%22%3A1%7D&isregularlink=1&biztype=UK&locale=en-GB&curr=GBP'
@@ -231,7 +232,6 @@ def get_next_trip_q_string():
         if lines:
             last_line = lines[-1]
             last_date = last_line[:10]
-            last_date = datetime.strptime(last_date, r'%d/%m/%Y').strftime(r'%Y-%m-%d')
             last_hour = last_line[11:13]
             new_trip_com_q_string = f'https://uk.trip.com/trains/list?departurecitycode=GB2278&arrivalcitycode=GB1594&departurecity=Sheffield&arrivalcity=London%20(Any)&departdate={last_date}&departhouript={last_hour}&departminuteipt=00&scheduleType=single&hidadultnum=1&hidchildnum=0&railcards=%7B%22YNG%22%3A1%7D&isregularlink=1&biztype=UK&locale=en-GB&curr=GBP'
             return new_trip_com_q_string
