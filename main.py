@@ -277,7 +277,7 @@ if __name__ == '__main__':
                 data_length = count_lines_in_txt_file()
                 print(data_length)
             else:
-                if DATA_POINTS < 50:
+                if DATA_POINTS < 150:
                     show_all_scrapped_data_for_vid()
 
                 time_taken = convert_seconds(time.time() - start_t)
